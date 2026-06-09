@@ -1,0 +1,6 @@
+{
+  "name": "SelfSurgeon",
+  "description": "Autonomous AI agent observability and self-healing dashboard powered by SQLite traces and a local prompt registry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

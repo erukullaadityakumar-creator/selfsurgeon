@@ -1,0 +1,221 @@
+# SelfSurgeon Agent Configuration
+# For Google Cloud Agent Builder / ADK
+#
+# This defines the SelfSurgeon agent that can:
+# - Analyze execution traces from Arize Phoenix
+# - Detect failure patterns
+# - Diagnose root causes
+# - Generate corrected prompts
+# - Validate fixes through experiments
+# - Auto-deploy winning versions
+
+agent:
+  name: SelfSurgeon
+  model: gemini-2.5-pro
+  description: >
+    An autonomous agent observability engineer. You analyze execution traces
+    from other agents, detect failure patterns, diagnose root causes, generate
+    corrected prompts, and validate fixes through controlled experiments — a
+    closed self-healing loop with no human in the critical path.
+
+  # System prompt defining the agent's behavior
+  system_prompt: |
+    You are SelfSurgeon, an autonomous AI observability agent powered by
+    Arize Phoenix. Your mission is to detect, diagnose, and repair failures
+    in other AI agents without human intervention.
+
+    ## OPERATING PRINCIPLES:
+    1. ALWAYS verify trace data before hypothesizing root causes
+    2. NEVER deploy a fix without experimental validation
+    3. MAINTAIN an audit log of every self-surgery in the surgery_log dataset
+    4. NEVER modify prompts to be unsafe, biased, or harmful
+    5. IF a fix fails validation, revert to previous version and flag for human review
+
+    ## FAILURE TAXONOMY (detect these patterns):
+    - BOUNDARY_AMBIGUITY: Numeric thresholds with unclear edge cases
+      (e.g., "over 50" at exactly 50 employees)
+    - TOOL_MISUSE: Wrong argument types or schemas passed to MCP tools
+    - CONTEXT_LOSS: Missing information from earlier steps in multi-step chains
+    - GOAL_DRIFT: Agent output diverges from original user intent
+    - RETRY_LOOP: Repeated identical tool calls with same arguments
+    - HALLUCINATION: Output contains facts not present in input or tools
+
+    ## SURGERY PROTOCOL:
+    Step 1: OBSERVE → List recent traces, filter by failure annotations
+    Step 2: DIAGNOSE → Get spans, identify first failure point, compare to historical patterns
+    Step 3: PRESCRIBE → Generate corrected prompt addressing root cause
+    Step 4: VALIDATE → Run Arize experiment: old vs new prompt on failure dataset
+    Step 5: DEPLOY → If new prompt wins by >5% accuracy, tag as production
+    Step 6: AUDIT → Log surgery details to surgery_log dataset
+
+    When calling arize_upsert_prompt, ALWAYS include a detailed changelog
+    explaining what boundary condition or logic error was fixed.
+
+  # Instructions for the agent
+  instructions: |
+    - Use the provided MCP tools to interact with Arize Phoenix
+    - Always run experiments before deploying any fix
+    - Log all surgeries to maintain audit trail
+    - Check safety before deploying any prompt changes
+    - Maintain a 5% minimum improvement threshold for deployment
+
+  # Configuration
+  config:
+    # Project settings
+    project_name: selfsurgeon-victim
+    surgery_dataset: surgery_log
+    failure_dataset: router_failures
+    prompt_name: router_system_prompt
+
+    # Deployment settings
+    deployment_threshold: 0.05  # 5% minimum improvement
+    max_deployments_per_hour: 3
+    surgery_interval_seconds: 300
+
+    # Model settings
+    temperature: 0.3
+    max_tokens: 8192
+
+# Tool definitions for Agent Builder
+# These should be registered as MCP tools
+tools:
+  # Observation Tools
+  - name: arize_list_traces
+    description: List recent traces from Arize Phoenix
+    parameters:
+      - name: project_name
+        type: string
+        description: Phoenix project name
+      - name: filter_condition
+        type: string
+        description: CQL-like filter
+      - name: limit
+        type: integer
+        description: Maximum traces to return
+
+  - name: arize_get_trace
+    description: Retrieve full trace tree with all spans
+    parameters:
+      - name: trace_id
+        type: string
+
+  - name: arize_get_spans
+    description: Get all spans within a trace session
+    parameters:
+      - name: trace_id
+        type: string
+
+  - name: arize_get_span
+    description: Get specific span with input/output/attributes
+    parameters:
+      - name: trace_id
+        type: string
+      - name: span_id
+        type: string
+
+  - name: arize_get_span_annotations
+    description: Read annotations on a span
+    parameters:
+      - name: trace_id
+        type: string
+      - name: span_id
+        type: string
+
+  # Memory Tools
+  - name: arize_list_datasets
+    description: List curated failure datasets
+    parameters:
+      - name: project_name
+        type: string
+
+  - name: arize_get_dataset
+    description: Retrieve dataset metadata
+    parameters:
+      - name: dataset_id
+        type: string
+
+  - name: arize_get_dataset_examples
+    description: Pull examples for pattern matching
+    parameters:
+      - name: dataset_id
+        type: string
+      - name: limit
+        type: integer
+
+  - name: arize_add_dataset_examples
+    description: Save failure + ground truth to dataset
+    parameters:
+      - name: dataset_id
+        type: string
+      - name: examples
+        type: array
+
+  # Action Tools
+  - name: arize_upsert_prompt
+    description: Register new prompt version
+    parameters:
+      - name: prompt_name
+        type: string
+      - name: version
+        type: string
+      - name: template
+        type: string
+      - name: changelog
+        type: string
+
+  - name: arize_get_latest_prompt
+    description: Get current production prompt
+    parameters:
+      - name: prompt_name
+        type: string
+
+  - name: arize_add_prompt_version_tag
+    description: Tag a prompt version
+    parameters:
+      - name: prompt_name
+        type: string
+      - name: version
+        type: string
+      - name: tag
+        type: string
+
+  - name: arize_run_experiment
+    description: Run A/B experiment
+    parameters:
+      - name: dataset_id
+        type: string
+      - name: baseline_prompt_version
+        type: string
+      - name: candidate_prompt_version
+        type: string
+      - name: evaluators
+        type: array
+
+  - name: arize_get_experiment_by_id
+    description: Retrieve experiment results
+    parameters:
+      - name: experiment_id
+        type: string
+
+  # Custom Tools
+  - name: analyze_failure_taxonomy
+    description: Parse trace JSON and classify failure type
+    parameters:
+      - name: trace_data
+        type: string
+
+  - name: generate_prompt_fix
+    description: Generate corrected prompt
+    parameters:
+      - name: current_prompt
+        type: string
+      - name: failure_type
+        type: string
+      - name: failure_description
+        type: string
+
+  - name: validate_safety
+    description: Check prompt for safety concerns
+    parameters:
+      - name: new_prompt
+        type: string

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Arize Phoenix - Trace collection and observability
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+    environment:
+      - PHOENIX_PORT=6006
+      - PHOENIX_HOST=0.0.0.0
+    volumes:
+      - phoenix_data:/.phoenix
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # SelfSurgeon Application
+  selfsurgeon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      phoenix:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./prompts:/app/prompts
+      - ./data:/app/data
+    environment:
+      - ARIZE_PHOENIX_HOST=http://phoenix:6006
+    command: streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
+
+volumes:
+  phoenix_data:
+    driver: local

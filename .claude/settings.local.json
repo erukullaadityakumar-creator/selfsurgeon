@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python victim_agent.py)",
+      "Bash(python selfsurgeon_agent.py)",
+      "Bash(docker-compose up *)",
+      "Bash(docker compose up *)",
+      "Bash(docker *)",
+      "Bash(gcloud *)",
+      "Bash(python *)",
+      "Bash(npm run *)"
+    ]
+  }
+}

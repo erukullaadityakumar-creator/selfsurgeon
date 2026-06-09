@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+frontend/node_modules/
+selfsurgeon/node_modules/
+
+# Environment
+.env
+!.env.example
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.err.log
+*.out.log
+
+# Data
+data/
+*.db
+
+# Vite build output
+frontend/dist/
+selfsurgeon/dist/
