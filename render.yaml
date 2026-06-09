@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: selfsurgeon-backend
+    runtime: docker
+    rootDir: selfsurgeon-backend
+    repo: https://github.com/erukullaadityakumar-creator/selfsurgeon
+    branch: master
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MCP_ENABLED
+        value: "false"
+      - key: USE_GEMINI_ROUTER
+        value: "false"
