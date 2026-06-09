@@ -46,4 +46,5 @@ async def shutdown():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host=settings.API_HOST, port=settings.API_PORT, reload=True)
+    port = settings.PORT if settings.PORT else settings.API_PORT
+    uvicorn.run("main:app", host=settings.API_HOST, port=port, reload=True)

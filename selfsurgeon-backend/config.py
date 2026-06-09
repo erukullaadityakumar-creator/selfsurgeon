@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
+    PORT: int | None = None  # Render-provided port
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
     # Legacy MCP integration settings (not required for local SQLite demo)
