@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSurgeon } from '../context/SurgeonContext';
+import { FAILURE_TYPES } from '../types';
 import '../css/dashboard.css';
 import {
   Activity,
@@ -13,15 +14,29 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Copy,
+  Check,
+  BarChart3,
+  Target,
+  Zap,
+  Brain,
+  Shield,
+  Cpu,
 } from 'lucide-react';
 import JsonTreeViewer from './JsonTreeViewer';
 import TerminalWidget from './TerminalWidget';
 
-const failureOptions = [
-  { value: 'BOUNDARY_AMBIGUITY', label: 'Boundary ambiguity', note: 'Threshold values route incorrectly' },
-  { value: 'OUTPUT_FORMAT_VIOLATION', label: 'Output format', note: 'Plain text returned instead of JSON' },
-  { value: 'TOOL_MISUSE', label: 'Tool misuse', note: 'Agent guesses when enrichment is required' },
-];
+const failureOptionDetails: Record<string, { label: string; note: string }> = {
+  BOUNDARY_AMBIGUITY: { label: 'Boundary ambiguity', note: 'Threshold values route incorrectly' },
+  MISSING_CONTEXT: { label: 'Missing context', note: 'Agent lacks required context information' },
+  HALLUCINATION: { label: 'Hallucination', note: 'Agent generates ungrounded content' },
+  TOOL_FAILURE: { label: 'Tool failure', note: 'Tool call parameters mismatch' },
+  MEMORY_FAILURE: { label: 'Memory failure', note: 'Agent fails to retain information' },
+  AGENT_CONFLICT: { label: 'Agent conflict', note: 'Multiple agents conflict on routing' },
+  RETRIEVAL_FAILURE: { label: 'Retrieval failure', note: 'Failed to retrieve relevant data' },
+  REASONING_FAILURE: { label: 'Reasoning failure', note: 'Logical gaps in reasoning chain' },
+  CUSTOM: { label: 'Custom', note: 'Describe your own failure scenario' },
+};
 
 const lifecycleSteps = ['Observe', 'Diagnose', 'Prescribe', 'Validate', 'Deploy', 'Audit'];
 
@@ -41,12 +56,32 @@ export default function DashboardView() {
     loading,
     error,
     generateDemoData,
+    generateAndHeal,
+    autoPipelineStep,
+    autoPipelineActive,
+    lastJudgeScore,
+    lastFixSuggestion,
+    executiveSummary,
+    customFailureInput,
+    setCustomFailureInput,
+    selectedAgent,
   } = useSurgeon();
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
   const [traceSearchId, setTraceSearchId] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFailureType, setSelectedFailureType] = useState('BOUNDARY_AMBIGUITY');
   const [showFullPrompt, setShowFullPrompt] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedFix, setCopiedFix] = useState(false);
+
+  // Preserve scroll position on re-render
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollPosition;
+    }
+  });
 
   const latestSurgery = [...surgeries].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -55,7 +90,7 @@ export default function DashboardView() {
   const visibleTrace = selectedTrace || traces[0] || null;
   const deployedCount = surgeries.filter(s => s.deploy_status === 'DEPLOYED').length;
   const failedTraceCount = traces.length;
-  const selectedFailure = failureOptions.find(option => option.value === selectedFailureType) || failureOptions[0];
+  const selectedFailureDetail = failureOptionDetails[selectedFailureType] || failureOptionDetails.BOUNDARY_AMBIGUITY;
 
   const handleTraceSearch = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -66,7 +101,9 @@ export default function DashboardView() {
   };
 
   const handleGenerate = async () => {
-    await generateDemoData(20, selectedFailureType);
+    if (autoPipelineActive) return;
+    const type = selectedFailureType === 'CUSTOM' ? (customFailureInput || 'BOUNDARY_AMBIGUITY') : selectedFailureType;
+    await generateAndHeal(type);
   };
 
   const selectTrace = (trace: typeof traces[number]) => {
@@ -74,7 +111,34 @@ export default function DashboardView() {
     setSelectedTraceId(trace.id);
   };
 
+  const handleCopyPrompt = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    } catch {}
+  };
+
+  const handleCopyFix = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedFix(true);
+      setTimeout(() => setCopiedFix(false), 3000);
+    } catch {}
+  };
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      setScrollPosition(scrollRef.current.scrollTop);
+    }
+  };
+
   const stepState = (index: number) => {
+    if (autoPipelineActive) {
+      if (index < autoPipelineStep) return 'complete';
+      if (index === autoPipelineStep) return 'active';
+      return 'pending';
+    }
     if (isHealing) {
       const activeIndex = Math.min(Math.max(lifecycleSteps.findIndex(step => healingStep.toLowerCase().includes(step.toLowerCase())), 0), lifecycleSteps.length - 1);
       if (index < activeIndex) return 'complete';
@@ -105,7 +169,20 @@ export default function DashboardView() {
   }
 
   return (
-    <div className="mission-control">
+    <div className="mission-control" ref={scrollRef} onScroll={handleScroll}>
+      {/* Executive Summary Banner */}
+      {executiveSummary && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 flex items-start gap-4 animate-fade-in">
+          <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <Zap size={20} className="text-emerald-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-emerald-400 font-mono mb-1">EXECUTIVE SUMMARY</h3>
+            <p className="text-xs text-gray-300 font-mono leading-relaxed">{executiveSummary}</p>
+          </div>
+        </div>
+      )}
+
       <section className="mission-hero">
         <div className="mission-copy">
           <div className="mission-eyebrow">
@@ -117,30 +194,111 @@ export default function DashboardView() {
             Generate agent failures, run the self-healing loop, and watch SelfSurgeon diagnose,
             validate, deploy, and audit a safer production prompt.
           </p>
+          {selectedAgent && (
+            <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-lg inline-block">
+              <span className="text-[10px] text-gray-500 font-mono">SELECTED AGENT</span>
+              <p className="text-xs font-bold text-white font-mono mt-1">{selectedAgent.name}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">{selectedAgent.description}</p>
+            </div>
+          )}
         </div>
 
         <div className="mission-actions">
           <label>
             Failure class
             <select value={selectedFailureType} onChange={(event) => setSelectedFailureType(event.target.value)}>
-              {failureOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+              {Object.entries(failureOptionDetails).map(([value, opt]) => (
+                <option key={value} value={value}>{opt.label}</option>
               ))}
             </select>
           </label>
-          <p>{selectedFailure.note}</p>
+          {selectedFailureType === 'CUSTOM' && (
+            <textarea
+              value={customFailureInput}
+              onChange={(e) => setCustomFailureInput(e.target.value)}
+              placeholder="Describe your failure scenario..."
+              className="w-full bg-[#050505] border border-white/14 rounded-lg p-2 text-xs font-mono text-white resize-none h-16"
+            />
+          )}
+          <p>{selectedFailureDetail.note}</p>
           <div className="mission-action-row">
-            <button className="mission-button secondary" onClick={handleGenerate}>
-              <RefreshCcw size={16} />
-              Generate Failures
+            <button className="mission-button primary" onClick={handleGenerate} disabled={autoPipelineActive}>
+              <Zap size={16} />
+              {autoPipelineActive ? 'Running 6-Step Pipeline...' : 'Generate & Auto-Heal'}
             </button>
-            <button className="mission-button primary" onClick={triggerSelfHealing} disabled={isHealing}>
-              <Play size={16} />
-              {isHealing ? 'Healing...' : 'Trigger Self-Healing'}
-            </button>
+            {selectedFailureType === 'CUSTOM' && customFailureInput && (
+              <button className="mission-button secondary" onClick={() => generateAndHeal(customFailureInput)} disabled={autoPipelineActive}>
+                <Play size={16} />
+                Run Custom Scenario
+              </button>
+            )}
           </div>
+          {/* Auto-pipeline progress */}
+          {autoPipelineActive && (
+            <div className="mt-2 p-2 bg-white/5 border border-white/10 rounded-lg">
+              <div className="flex items-center gap-2 text-xs font-mono text-white">
+                <RefreshCcw className="animate-spin" size={12} />
+                <span>Step {autoPipelineStep}/6: {lifecycleSteps[autoPipelineStep - 1] || 'Complete'}</span>
+              </div>
+              <div className="w-full bg-[#16161a] h-1 rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${(autoPipelineStep / 6) * 100}%` }} />
+              </div>
+            </div>
+          )}
         </div>
       </section>
+
+      {/* AI Judge Scores */}
+      {lastJudgeScore && (
+        <section className="bg-[#0d0d0f] border border-white/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 size={18} className="text-emerald-400" />
+            <h2 className="text-sm font-bold text-white font-mono">AI JUDGE SCORES</h2>
+            <span className="text-[10px] text-gray-500 font-mono">Per-trace evaluation</span>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <ScoreBadge label="Reliability" value={lastJudgeScore.reliability} />
+            <ScoreBadge label="Safety" value={lastJudgeScore.safety} />
+            <ScoreBadge label="Reasoning" value={lastJudgeScore.reasoning} />
+            <ScoreBadge label="Tool Usage" value={lastJudgeScore.toolUsage} />
+            <ScoreBadge label="Production Ready" value={lastJudgeScore.productionReadiness} />
+            <ScoreBadge label="Overall" value={lastJudgeScore.overall} highlight />
+          </div>
+        </section>
+      )}
+
+      {/* Auto Fix Generator */}
+      {lastFixSuggestion && (
+        <section className="bg-[#0d0d0f] border border-white/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Target size={18} className="text-emerald-400" />
+            <h2 className="text-sm font-bold text-white font-mono">AUTO FIX GENERATOR</h2>
+            <span className="text-[10px] text-gray-500 font-mono">One-click copy</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <FixCard
+              title="Improved Prompt"
+              content={lastFixSuggestion.improvedPrompt}
+              onCopy={() => handleCopyFix(lastFixSuggestion.improvedPrompt)}
+            />
+            <FixCard
+              title="Improved Agent Design"
+              content={lastFixSuggestion.improvedAgentDesign}
+              onCopy={() => handleCopyFix(lastFixSuggestion.improvedAgentDesign)}
+            />
+            <FixCard
+              title="Improved Workflow"
+              content={lastFixSuggestion.improvedWorkflow}
+              onCopy={() => handleCopyFix(lastFixSuggestion.improvedWorkflow)}
+            />
+          </div>
+          {copiedFix && (
+            <div className="mt-2 text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+              <Check size={12} /> Copied to clipboard!
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="mission-metrics">
         <MetricCard icon={<HeartPulse size={18} />} label="System health" value={status.health_status} detail="Backend and local registry online" />
@@ -172,9 +330,9 @@ export default function DashboardView() {
 
           <div className="mission-summary-grid">
             <div>
-              <span className="mission-label">Diagnosis</span>
+              <span className="mission-label">Root Cause</span>
               <h3>{latestSurgery ? latestSurgery.failure_type.replaceAll('_', ' ').toLowerCase() : 'Waiting for failed traces'}</h3>
-              <p>{latestSurgery?.diagnosis_details || 'SelfSurgeon will classify the dominant failure pattern after observing real failed traces.'}</p>
+              <p>{latestSurgery?.diagnosis_details || lastFixSuggestion?.rootCause || 'SelfSurgeon will classify the dominant failure pattern after observing real failed traces.'}</p>
             </div>
             <div>
               <span className="mission-label">Deployment decision</span>
@@ -255,12 +413,12 @@ export default function DashboardView() {
 
         <div className="mission-panel mission-span-6">
           <PanelHeader icon={<GitCompare size={17} />} title="Prompt before" subtitle={latestSurgery?.old_version || 'Baseline'} />
-          <PromptBlock content={latestSurgery?.old_prompt || activePrompt?.content || 'No prompt loaded yet.'} expanded={showFullPrompt} />
+          <PromptBlock content={latestSurgery?.old_prompt || activePrompt?.content || 'No prompt loaded yet.'} expanded={showFullPrompt} onCopy={() => handleCopyPrompt(latestSurgery?.old_prompt || activePrompt?.content || '')} copied={copiedPrompt} />
         </div>
 
         <div className="mission-panel mission-span-6">
           <PanelHeader icon={<ShieldCheck size={17} />} title="Prompt after" subtitle={latestSurgery?.new_version || status.current_prompt_version || 'Production'} />
-          <PromptBlock content={latestSurgery?.new_prompt || activePrompt?.content || 'No prompt loaded yet.'} expanded={showFullPrompt} />
+          <PromptBlock content={latestSurgery?.new_prompt || activePrompt?.content || 'No prompt loaded yet.'} expanded={showFullPrompt} onCopy={() => handleCopyPrompt(latestSurgery?.new_prompt || activePrompt?.content || '')} copied={copiedPrompt} />
           <button className="prompt-toggle" onClick={() => setShowFullPrompt(!showFullPrompt)}>
             {showFullPrompt ? 'Collapse prompts' : 'Show full prompts'}
           </button>
@@ -295,7 +453,7 @@ export default function DashboardView() {
   );
 }
 
-function MetricCard({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string; detail: string }) {
+function MetricCard({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string | number; detail: string }) {
   return (
     <div className="mission-metric">
       <div className="mission-metric-top">
@@ -340,10 +498,45 @@ function TraceFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PromptBlock({ content, expanded }: { content: string; expanded: boolean }) {
+function PromptBlock({ content, expanded, onCopy, copied }: { content: string; expanded: boolean; onCopy: () => void; copied: boolean }) {
   return (
-    <pre className={`prompt-block ${expanded ? 'expanded' : ''}`}>
-      {content}
-    </pre>
+    <div className="relative">
+      <pre className={`prompt-block ${expanded ? 'expanded' : ''}`}>
+        {content}
+      </pre>
+      <button
+        onClick={onCopy}
+        className="absolute top-2 right-2 p-1.5 bg-white/10 hover:bg-white/20 rounded border border-white/10 transition-all"
+        title="Copy prompt"
+      >
+        {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-gray-400" />}
+      </button>
+    </div>
+  );
+}
+
+function ScoreBadge({ label, value, highlight = false }: { label: string; value: number; highlight?: boolean }) {
+  return (
+    <div className={`p-3 rounded-xl border font-mono ${highlight ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-[#0a0a0f] border-white/10'}`}>
+      <span className="text-[9px] text-gray-500 block uppercase tracking-wider">{label}</span>
+      <span className={`text-lg font-bold block mt-1 ${highlight ? 'text-emerald-400' : value >= 80 ? 'text-emerald-400' : value >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+        {value}
+        <span className="text-xs opacity-70">/100</span>
+      </span>
+    </div>
+  );
+}
+
+function FixCard({ title, content, onCopy }: { title: string; content: string; onCopy: () => void }) {
+  return (
+    <div className="bg-[#0a0a0f] border border-white/10 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-bold text-emerald-400 font-mono uppercase">{title}</span>
+        <button onClick={onCopy} className="p-1 hover:bg-white/10 rounded transition-all">
+          <Copy size={10} className="text-gray-400" />
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-300 leading-relaxed font-mono">{content}</p>
+    </div>
   );
 }

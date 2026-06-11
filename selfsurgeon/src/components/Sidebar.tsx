@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Scissors, Sliders, FileCode, Cpu, AlertTriangle, Activity, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Scissors, Sliders, FileCode, Cpu, AlertTriangle, Activity, RefreshCw, User } from 'lucide-react';
 import { useSurgeon } from '../context/SurgeonContext';
 
 interface SidebarProps {
@@ -8,13 +8,14 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
-  const { status, simulateFailure, triggerSelfHealing, isHealing, healingStep } = useSurgeon();
+  const { status, simulateFailure, triggerSelfHealing, isHealing, healingStep, surgeries, traces } = useSurgeon();
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'surgeries', label: 'Surgeries', icon: Scissors, count: useSurgeon().surgeries.length },
-    { id: 'traces', label: 'Raw Traces', icon: Sliders, count: useSurgeon().traces.length },
+    { id: 'surgeries', label: 'Surgeries', icon: Scissors, count: surgeries.length },
+    { id: 'traces', label: 'Raw Traces', icon: Sliders, count: traces.length },
     { id: 'prompts', label: 'Prompts Registry', icon: FileCode },
+    { id: 'agents', label: 'Custom Agents', icon: User },
     { id: 'architecture', label: 'Architecture', icon: Cpu },
   ];
 

@@ -6,9 +6,10 @@ import SurgeriesView from './components/SurgeriesView';
 import TracesView from './components/TracesView';
 import PromptsView from './components/PromptsView';
 import ArchitectureView from './components/ArchitectureView';
+import AgentsView from './components/AgentsView';
 
 // Mobile navigations import
-import { LayoutDashboard, Scissors, Sliders, FileCode, Cpu } from 'lucide-react';
+import { LayoutDashboard, Scissors, Sliders, FileCode, Cpu, User } from 'lucide-react';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -25,6 +26,8 @@ export default function App() {
         return <PromptsView />;
       case 'architecture':
         return <ArchitectureView />;
+      case 'agents':
+        return <AgentsView />;
       default:
         return <DashboardView />;
     }
@@ -35,6 +38,7 @@ export default function App() {
     { id: 'surgeries', label: 'Surgery', icon: Scissors },
     { id: 'traces', label: 'Traces', icon: Sliders },
     { id: 'prompts', label: 'Prompts', icon: FileCode },
+    { id: 'agents', label: 'Agents', icon: User },
     { id: 'architecture', label: 'Arch', icon: Cpu }
   ];
 
@@ -64,10 +68,10 @@ export default function App() {
             </div>
             
             <div className="flex flex-wrap items-center gap-4 sm:gap-6 self-stretch sm:self-auto justify-between sm:justify-start">
-              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+              <button onClick={() => setCurrentTab('traces')} className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-all cursor-pointer">
                 <div className="w-2 h-2 rounded-full bg-white animate-pulse shadow-[0_0_8px_rgba(255,255,255,1)]"></div>
                 <span className="text-[10px] sm:text-xs font-semibold text-white font-mono tracking-wider">SYSTEM MONITORING</span>
-              </div>
+              </button>
               
               <div className="text-right font-mono">
                 <div className="text-[10px] text-zinc-400">MODE: <span className="text-white">LOCAL</span></div>

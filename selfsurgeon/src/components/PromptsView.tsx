@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSurgeon } from '../context/SurgeonContext';
 import { PromptVersion } from '../types';
 import { 
   X, Check, History, ArrowUpDown, ChevronRight, FileCode, CheckCircle2, 
-  CornerDownLeft, AlertCircle, GitCompare, RefreshCw
+  CornerDownLeft, AlertCircle, GitCompare, RefreshCw, Copy
 } from 'lucide-react';
 
 export default function PromptsView() {
   const { prompts, status, rollbackPromptVersion } = useSurgeon();
 
-  const [leftVerId, setLeftVerId] = useState('v_20240615_091512');
-  const [rightVerId, setRightVerId] = useState('v_20240620_183000');
+  const [leftVerId, setLeftVerId] = useState('');
+  const [rightVerId, setRightVerId] = useState('');
+
+  useEffect(() => {
+    if (prompts.length > 0 && !leftVerId) {
+      setLeftVerId(prompts[0].version);
+      if (prompts.length > 1) {
+        setRightVerId(prompts[1].version);
+      }
+    }
+  }, [prompts, leftVerId]);
   
   // Rollback confirmation states
   const [rollbackConfirmVersion, setRollbackConfirmVersion] = useState<string | null>(null);
+  const [copiedVersion, setCopiedVersion] = useState<string | null>(null);
+
+  const handleCopyContent = async (content: string, version: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedVersion(version);
+      setTimeout(() => setCopiedVersion(null), 2000);
+    } catch {}
+  };
 
   const activePromptProduct = prompts.find(p => p.status === 'PRODUCTION') || prompts[0];
 
@@ -140,14 +158,26 @@ export default function PromptsView() {
                 </div>
 
                 <div className="text-[11px] font-mono text-gray-500 flex items-center gap-1.5 mb-2">
-                  <span className="font-bold text-emerald-400">ACCURACY SCORE: {Math.round(version.accuracy * 100)}%</span>
+                  <span className="font-bold text-emerald-400">REGISTRY INTEGRITY: {Math.round(version.accuracy * 100)}%</span>
                   <span>•</span>
                   <span>{new Date(version.timestamp).toLocaleDateString()}</span>
                 </div>
 
-                <p className="text-xs text-[#94a3b8] leading-relaxed mb-3 pr-2">
-                  {version.changelog}
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs text-[#94a3b8] leading-relaxed flex-1">
+                    {version.changelog}
+                  </p>
+                  <button
+                    onClick={() => handleCopyContent(version.content, version.version)}
+                    className="p-1.5 bg-white/5 hover:bg-white/10 rounded border border-white/10 transition-all shrink-0"
+                    title="Copy prompt content"
+                  >
+                    {copiedVersion === version.version
+                      ? <Check size={10} className="text-emerald-400" />
+                      : <Copy size={10} className="text-gray-400" />
+                    }
+                  </button>
+                </div>
 
                 {/* Card Rollback Trigger if not in prod */}
                 {!isProduction && (

@@ -172,14 +172,14 @@ export default function TracesView() {
               <div 
                 key={trace.id}
                 onClick={() => openTraceModal(trace)}
-                className="bg-[#121212] border border-white/5 rounded-xl p-5 hover:translate-y-[-2px] hover:border-white/20 hover:shadow-[0_4px_25px_rgba(255,255,255,0.01)] cursor-pointer transition-all duration-300 flex flex-col justify-between"
+                className="bg-[#121212] border border-white/5 rounded-xl p-5 hover:translate-y-[-2px] hover:border-white/20 hover:shadow-[0_4px_25px_rgba(255,255,255,0.01)] cursor-pointer transition-all duration-300 flex flex-col justify-between overflow-hidden"
               >
                 <div>
                   {/* Card Header metrics */}
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <div>
                       <span className="font-mono text-xs text-white font-bold">{trace.id}</span>
-                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">{new Date(trace.timestamp).toLocaleTimeString()}</p>
+                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">{new Date(trace.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}.{String(new Date(trace.timestamp).getMilliseconds()).padStart(3, '0')}</p>
                     </div>
                     
                     <span className={`text-[10px] px-2 py-0.5 font-mono border rounded ${scoreBg} ${scoreBorder} ${scoreColor}`}>

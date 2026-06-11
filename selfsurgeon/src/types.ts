@@ -68,3 +68,42 @@ export interface LogLine {
   level: 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR' | 'ANALYZE';
   message: string;
 }
+
+export interface CustomAgent {
+  id: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  expectedInputs: string;
+  expectedOutputs: string;
+}
+
+export interface JudgeScore {
+  reliability: number;
+  safety: number;
+  reasoning: number;
+  toolUsage: number;
+  productionReadiness: number;
+  overall: number;
+}
+
+export interface FixSuggestion {
+  improvedPrompt: string;
+  improvedAgentDesign: string;
+  improvedWorkflow: string;
+  rootCause: string;
+}
+
+export const FAILURE_TYPES = [
+  'BOUNDARY_AMBIGUITY',
+  'MISSING_CONTEXT',
+  'HALLUCINATION',
+  'TOOL_FAILURE',
+  'MEMORY_FAILURE',
+  'AGENT_CONFLICT',
+  'RETRIEVAL_FAILURE',
+  'REASONING_FAILURE',
+  'CUSTOM',
+] as const;
+
+export type FailureType = typeof FAILURE_TYPES[number];
